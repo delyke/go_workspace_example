@@ -2,7 +2,7 @@ version: '3'
 
 # Глобальные переменные проекта
 vars:
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.25.5'
   GOLANGCI_LINT_VERSION: 'v2.1.5'
   GCI_VERSION: 'v0.13.6'
   GOFUMPT_VERSION: 'v0.8.0'
@@ -237,7 +237,7 @@ tasks:
         for mod in {{.MODULES}}; do
           if [ -d "$mod" ]; then
             echo "🔄 Обновление зависимостей в $mod"
-            (cd "$mod" && go mod tidy -compat=1.24) || exit 1
+            (cd "$mod" && go mod tidy -compat=1.25.5) || exit 1
           fi
         done
 
