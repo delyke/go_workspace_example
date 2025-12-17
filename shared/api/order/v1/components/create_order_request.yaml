@@ -1,0 +1,17 @@
+type: object
+required:
+  - user_uuid
+  - part_uuids
+properties:
+  user_uuid:
+    type: string
+    format: uuid
+    description: UUID пользователя
+  part_uuids:
+    description: Массив с UUID деталей
+    type: array
+    items:
+      type: string
+      format: uuid
+      description: UUID детали
+      example: 0000-0000-0000-0000

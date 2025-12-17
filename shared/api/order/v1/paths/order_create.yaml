@@ -1,0 +1,55 @@
+post:
+  summary: Создать заказ
+  description: Создает новый заказ на основе выбранных пользователем деталей
+  operationId: CreateOrder
+  tags:
+    - Order
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/create_order_request.yaml
+  responses:
+    '201':
+      description: Заказ успешно создан
+      content:
+        application/json:
+          schema:
+            $ref: ../components/create_order_response.yaml
+    '404':
+      description: ID деталей, находящиеся в запросе, не найдены
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/not_found_error.yaml
+    '500':
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/internal_server_error.yaml
+    '502':
+      description: Неизвестный статус ответа сервиса инвентаря
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/bad_gateway_error.yaml
+    '503':
+      description: Сервис инвентаря не доступен
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/service_unavailable_error.yaml
+    '504':
+      description: Превышено время ожидания от сервиса
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/gateway_timeout_error.yaml
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/generic_error.yaml

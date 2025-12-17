@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package payment.v1;
+
+option go_package = "github.com/delyke/go_workspace_example/shared/pkg/proto/payment/v1;payment_v1";
+
+//Сервис оплаты заказов симулирует работу платежного шлюза. Он не сохраняет состояние, а просто принимает команду
+// на оплату, генерирует UUID транзакции, печатает его в консоль и возвращает вызывающей стороне
+service PaymentService{
+  rpc PayOrder(PayOrderRequest) returns (PayOrderResponse);
+}
+// Доступные методы оплаты
+enum PaymentMethod {
+  PAYMENT_METHOD_UNKNOWN_UNSPECIFIED = 0;
+  PAYMENT_METHOD_CARD = 1;
+  PAYMENT_METHOD_SBP = 2;
+  PAYMENT_METHOD_CREDIT_CARD = 3;
+  PAYMENT_METHOD_INVESTOR_MONEY = 4;
+}
+
+// Запрос на создание платежа
+message PayOrderRequest{
+  string uuid = 1;
+  string user_uuid = 2;
+  PaymentMethod payment_method = 3;
+}
+
+//Ответ на создание платежа
+message PayOrderResponse{
+  string transaction_uuid = 1;
+}

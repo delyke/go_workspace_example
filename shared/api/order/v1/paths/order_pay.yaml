@@ -1,0 +1,58 @@
+parameters:
+  - $ref: "../params/order_uuid.yaml"
+
+post:
+  summary: Оплата заказа
+  description: Проводит оплату ранее созданного заказа
+  operationId: PayOrder
+  tags:
+    - Order
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/pay_order_request.yaml
+  responses:
+    '200':
+      description: Заказ успешно оплачен
+      content:
+        application/json:
+          schema:
+            $ref: ../components/pay_order_response.yaml
+    '404':
+      description: Заказ не найден
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/not_found_error.yaml
+    '500':
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/internal_server_error.yaml
+    '502':
+      description: Неизвестный статус ответа сервиса оплаты
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/bad_gateway_error.yaml
+    '503':
+      description: Сервис оплаты не доступен
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/service_unavailable_error.yaml
+    '504':
+      description: Превышено время ожидания от сервиса оплаты
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/gateway_timeout_error.yaml
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/generic_error.yaml
