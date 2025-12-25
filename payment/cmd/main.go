@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
@@ -9,24 +8,15 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
+	paymentApiV1 "github.com/delyke/go_workspace_example/payment/internal/api/payment/v1"
+	paymentService "github.com/delyke/go_workspace_example/payment/internal/service/payment"
 	paymentV1 "github.com/delyke/go_workspace_example/shared/pkg/proto/payment/v1"
 )
 
 const grpcPort = 50052
-
-type paymentService struct {
-	paymentV1.UnimplementedPaymentServiceServer
-}
-
-func (s *paymentService) PayOrder(_ context.Context, req *paymentV1.PayOrderRequest) (*paymentV1.PayOrderResponse, error) {
-	uid := uuid.NewString()
-	log.Printf("Оплата прошла успешно, transaction_uuid: %s", uid)
-	return &paymentV1.PayOrderResponse{TransactionUuid: uid}, nil
-}
 
 func main() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
@@ -34,15 +24,13 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 		return
 	}
-	defer func() {
-		if cerr := lis.Close(); cerr != nil {
-			log.Printf("failed to close listener: %v", cerr)
-		}
-	}()
 
 	s := grpc.NewServer()
-	service := &paymentService{}
-	paymentV1.RegisterPaymentServiceServer(s, service)
+
+	pService := paymentService.NewService()
+	apiV1 := paymentApiV1.NewApi(pService)
+
+	paymentV1.RegisterPaymentServiceServer(s, apiV1)
 	reflection.Register(s)
 
 	go func() {

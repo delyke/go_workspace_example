@@ -1,0 +1,33 @@
+with-expecter: true
+boilerplate-file: ".mockery_boilerplate_text.txt"
+dir: "{{.InterfaceDir}}/mocks"
+filename: "mock_{{.InterfaceNameSnake}}.go"
+outpkg: "mocks"
+mockname: "{{.InterfaceName}}"
+resolve-type-alias: False
+issue-845-fix: True
+
+packages:
+  github.com/delyke/go_workspace_example/inventory/internal/service:
+    config:
+      include-regex: ".*Service"
+  github.com/delyke/go_workspace_example/inventory/internal/repository:
+    config:
+      include-regex: ".*Repository"
+
+
+      
+  github.com/delyke/go_workspace_example/order/internal/service:
+    config:
+      include-regex: ".*Service"
+  github.com/delyke/go_workspace_example/order/internal/repository:
+    config:
+      include-regex: ".*Repository"
+  github.com/delyke/go_workspace_example/order/internal/client/grpc:
+    config:
+      include-regex: ".*Client"
+
+
+  github.com/delyke/go_workspace_example/payment/internal/service:
+    config:
+      include-regex: ".*Service"

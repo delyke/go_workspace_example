@@ -1,0 +1,1 @@
+// Code generated for go_workspace_example
