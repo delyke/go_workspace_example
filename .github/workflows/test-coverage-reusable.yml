@@ -51,7 +51,7 @@ jobs:
       - name: 🧪 Run tests with coverage
         env:
           MODULES: ${{ inputs.modules }}
-          GOTOOLCHAIN: local
+          GOTOOLCHAIN: go1.25.5+auto
         run: task test-coverage
 
       - name: 📊 Extract coverage percent
