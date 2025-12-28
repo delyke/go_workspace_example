@@ -155,6 +155,6 @@ func (s *ServiceSuite) TestCreateOrderSuccess() {
 	ansUUID, price, err := s.service.Create(s.ctx, userUUID, partUUIDs)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(ansUUID)
-	s.Require().Equal(createdOrder.UUID, ansUUID)
+	s.Require().Equal(createdOrder.UUID.String(), ansUUID)
 	s.Require().Equal(price, createdOrder.TotalPrice)
 }

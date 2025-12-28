@@ -13,12 +13,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	orderV1Api "github.com/delyke/go_workspace_example/order/internal/api/order/v1"
 	inventoryClient "github.com/delyke/go_workspace_example/order/internal/client/grpc/inventory/v1"
 	paymentClient "github.com/delyke/go_workspace_example/order/internal/client/grpc/payment/v1"
+	"github.com/delyke/go_workspace_example/order/internal/migrator"
 	orderRepo "github.com/delyke/go_workspace_example/order/internal/repository/order"
 	orderService "github.com/delyke/go_workspace_example/order/internal/service/order"
 	orderV1 "github.com/delyke/go_workspace_example/shared/pkg/openapi/order/v1"
@@ -35,12 +39,49 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Printf("failed to load .env file: %v", err)
+		return
+	}
+
+	dbURI := os.Getenv("DB_URI")
+
+	pool, err := pgxpool.New(ctx, dbURI)
+	if err != nil {
+		log.Printf("failed to connect to database: %v", err)
+		return
+	}
+	defer pool.Close()
+
+	err = pool.Ping(ctx)
+	if err != nil {
+		log.Printf("failed to ping database: %v", err)
+		return
+	}
+
+	migrationsDir := os.Getenv("MIGRATIONS_DIR")
+
+	poolCfg, err := pgxpool.ParseConfig(dbURI)
+	if err != nil {
+		return
+	}
+
+	migratorRunner := migrator.NewMigrator(stdlib.OpenDB(*poolCfg.ConnConfig), migrationsDir)
+	err = migratorRunner.Up()
+	if err != nil {
+		log.Printf("Ошибка миграции базы данных: %v\n", err)
+		return
+	}
+
 	connInventory, err := grpc.NewClient(
 		inventoryAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		log.Fatalf("inventory grpc connect failed: %v", err)
+		log.Printf("inventory grpc connect failed: %v", err)
 	}
 	defer func() {
 		if cerr := connInventory.Close(); cerr != nil {
@@ -69,7 +110,7 @@ func main() {
 	generatedPaymentClient := paymentV1.NewPaymentServiceClient(connPayment)
 	payClient := paymentClient.NewClient(generatedPaymentClient)
 
-	repo := orderRepo.NewRepository()
+	repo := orderRepo.NewRepository(pool)
 	service := orderService.NewService(repo, invClient, payClient)
 	api := orderV1Api.NewApi(service)
 

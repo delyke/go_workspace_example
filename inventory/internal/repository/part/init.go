@@ -32,9 +32,9 @@ func (r *repository) Init(ctx context.Context) error {
 				Website: "https://orbital-dynamics.de",
 			},
 			Tags: []string{"main", "engine", "booster"},
-			Metadata: map[string]*repoModel.PartMetadataValue{
-				"fuel_type": {Kind: repoModel.MetadataKindString, String: lo.ToPtr("liquid")},
-				"reusable":  {Kind: repoModel.MetadataKindBool, Bool: lo.ToPtr(true)},
+			Metadata: map[string]any{
+				"fuel_type": "liquid",
+				"reusable":  true,
 			},
 			CreatedAt: lo.ToPtr(now),
 			UpdatedAt: lo.ToPtr(now),
@@ -58,8 +58,8 @@ func (r *repository) Init(ctx context.Context) error {
 				Website: "https://cosmofuel.com",
 			},
 			Tags: []string{"fuel", "tank"},
-			Metadata: map[string]*repoModel.PartMetadataValue{
-				"capacity_liters": {Kind: repoModel.MetadataKindInt64, Int64: lo.ToPtr(int64(5000))},
+			Metadata: map[string]any{
+				"capacity_liters": int64(5000),
 			},
 			CreatedAt: lo.ToPtr(now),
 			UpdatedAt: lo.ToPtr(now),
@@ -83,8 +83,8 @@ func (r *repository) Init(ctx context.Context) error {
 				Website: "https://spaceglass.fr",
 			},
 			Tags: []string{"window", "glass"},
-			Metadata: map[string]*repoModel.PartMetadataValue{
-				"radiation_protected": {Kind: repoModel.MetadataKindBool, Bool: lo.ToPtr(true)},
+			Metadata: map[string]any{
+				"radiation_protected": true,
 			},
 			CreatedAt: lo.ToPtr(now),
 			UpdatedAt: lo.ToPtr(now),
@@ -108,8 +108,8 @@ func (r *repository) Init(ctx context.Context) error {
 				Website: "https://aerospace.co.uk",
 			},
 			Tags: []string{"wing", "left"},
-			Metadata: map[string]*repoModel.PartMetadataValue{
-				"material": {Kind: repoModel.MetadataKindString, String: lo.ToPtr("carbon")},
+			Metadata: map[string]any{
+				"material": "carbon",
 			},
 			CreatedAt: lo.ToPtr(now),
 			UpdatedAt: lo.ToPtr(now),

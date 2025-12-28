@@ -39,18 +39,23 @@ func ModelPartMetadataKindToRepo(kind model.PartMetadataKind) repoModel.PartMeta
 	}
 }
 
-func ModelPartMetadataToRepo(m map[string]*model.PartMetadataValue) map[string]*repoModel.PartMetadataValue {
+func ModelPartMetadataToRepo(m map[string]*model.PartMetadataValue) map[string]any {
 	if len(m) == 0 {
 		return nil
 	}
-	result := make(map[string]*repoModel.PartMetadataValue, len(m))
+	result := make(map[string]interface{}, len(m))
 	for k, v := range m {
-		result[k] = &repoModel.PartMetadataValue{
-			Kind:   ModelPartMetadataKindToRepo(v.Kind),
-			String: v.String,
-			Int64:  v.Int64,
-			Double: v.Double,
-			Bool:   v.Bool,
+		switch v.Kind {
+		case model.MetadataKindString:
+			result[k] = v.String
+		case model.MetadataKindInt64:
+			result[k] = v.Int64
+		case model.MetadataKindDouble:
+			result[k] = v.Double
+		case model.MetadataKindBool:
+			result[k] = v.Bool
+		default:
+			continue
 		}
 	}
 	return result
@@ -94,10 +99,10 @@ func ModelPartCategoryToRepo(category model.PartCategory) repoModel.PartCategory
 	}
 }
 
-func RepoListPartsToModel(parts []*repoModel.Part) []*model.Part {
+func RepoListPartsToModel(parts []repoModel.Part) []*model.Part {
 	modelParts := make([]*model.Part, len(parts))
 	for i, part := range parts {
-		modelParts[i] = lo.ToPtr(RepoPartToModel(*part))
+		modelParts[i] = lo.ToPtr(RepoPartToModel(part))
 	}
 	return modelParts
 }
@@ -159,36 +164,36 @@ func RepoManufacturerToModel(manufacturer *repoModel.PartManufacturer) *model.Pa
 	}
 }
 
-func RepoMetadataToModel(metadata map[string]*repoModel.PartMetadataValue) map[string]*model.PartMetadataValue {
+func RepoMetadataToModel(metadata map[string]any) map[string]*model.PartMetadataValue {
 	if len(metadata) == 0 {
 		return nil
 	}
 	result := make(map[string]*model.PartMetadataValue, len(metadata))
 	for k, v := range metadata {
-		result[k] = &model.PartMetadataValue{
-			Kind:   RepoMetadataKindToModel(v.Kind),
-			String: v.String,
-			Int64:  v.Int64,
-			Double: v.Double,
-			Bool:   v.Bool,
+		switch val := v.(type) {
+		case string:
+			result[k] = &model.PartMetadataValue{
+				Kind:   model.MetadataKindString,
+				String: lo.ToPtr(val),
+			}
+		case int64:
+			result[k] = &model.PartMetadataValue{
+				Kind:  model.MetadataKindInt64,
+				Int64: lo.ToPtr(val),
+			}
+		case float64:
+			result[k] = &model.PartMetadataValue{
+				Kind:   model.MetadataKindDouble,
+				Double: lo.ToPtr(val),
+			}
+		case bool:
+			result[k] = &model.PartMetadataValue{
+				Kind: model.MetadataKindBool,
+				Bool: lo.ToPtr(val),
+			}
+		default:
+			continue
 		}
 	}
 	return result
-}
-
-func RepoMetadataKindToModel(kind repoModel.PartMetadataKind) model.PartMetadataKind {
-	switch kind {
-	case repoModel.MetadataKindUnknown:
-		return model.MetadataKindUnknown
-	case repoModel.MetadataKindString:
-		return model.MetadataKindString
-	case repoModel.MetadataKindInt64:
-		return model.MetadataKindInt64
-	case repoModel.MetadataKindDouble:
-		return model.MetadataKindDouble
-	case repoModel.MetadataKindBool:
-		return model.MetadataKindBool
-	default:
-		return model.MetadataKindUnknown
-	}
 }

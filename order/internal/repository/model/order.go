@@ -1,11 +1,13 @@
 package model
 
+import "github.com/google/uuid"
+
 type Order struct {
-	UUID            string
-	UserUUID        string
-	PartUuids       []string
+	UUID            uuid.UUID
+	UserUUID        uuid.UUID
+	PartUuids       []uuid.UUID
 	TotalPrice      float64
-	TransactionUUID *string
+	TransactionUUID *uuid.UUID
 	OrderStatus     string
 	PaymentMethod   *string
 }

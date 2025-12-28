@@ -2,159 +2,79 @@ package part
 
 import (
 	"context"
-	"strings"
+	"log"
 
-	"github.com/samber/lo"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/delyke/go_workspace_example/inventory/internal/model"
 	"github.com/delyke/go_workspace_example/inventory/internal/repository/converter"
 	repoModel "github.com/delyke/go_workspace_example/inventory/internal/repository/model"
 )
 
-func (r *repository) ListParts(_ context.Context, filters *model.PartsFilter) ([]*model.Part, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	parts := make([]*repoModel.Part, 0, len(r.parts))
-	for _, part := range r.parts {
-		parts = append(parts, part)
+func (r *repository) ListParts(ctx context.Context, filters *model.PartsFilter) ([]*model.Part, error) {
+	var qFilter bson.M
+	if filters != nil {
+		qFilter = buildFilters(filters)
 	}
 
-	if isEmptyFilter(filters) {
-		return converter.RepoListPartsToModel(parts), nil
+	cursor, err := r.collection.Find(ctx, qFilter)
+	if err != nil {
+		return nil, err
 	}
-
-	pred, ok := buildPredicate(filters)
-	if !ok {
-		return converter.RepoListPartsToModel(parts), nil
-	}
-
-	out := make([]*model.Part, 0, len(parts))
-	for _, part := range parts {
-		if pred(part) {
-			out = append(out, lo.ToPtr(converter.RepoPartToModel(*part)))
+	defer func() {
+		if cerr := cursor.Close(ctx); err != nil {
+			log.Printf("error cursor.Closing: %v", cerr)
 		}
+	}()
+
+	var parts []repoModel.Part
+
+	err = cursor.All(ctx, &parts)
+	if err != nil {
+		return nil, err
 	}
-	return out, nil
+	return converter.RepoListPartsToModel(parts), nil
 }
 
-func isEmptyFilter(f *model.PartsFilter) bool {
-	if f == nil {
-		return true
-	}
-	return len(f.UUIDs) == 0 &&
-		len(f.Tags) == 0 &&
-		len(f.ManufacturerCountries) == 0 &&
-		len(f.Categories) == 0 &&
-		len(f.Names) == 0
-}
+func buildFilters(filters *model.PartsFilter) bson.M {
+	filter := bson.M{}
+	and := bson.A{}
 
-type partPredicate func(part *repoModel.Part) bool
-
-func buildPredicate(filters *model.PartsFilter) (partPredicate, bool) {
-	var preds []partPredicate
-
-	if set := normalizeStringSet(filters.UUIDs, false); len(set) > 0 {
-		preds = append(preds, func(part *repoModel.Part) bool {
-			_, ok := set[part.Uuid]
-			return ok
-		})
+	if len(filters.UUIDs) > 0 {
+		and = append(and, bson.M{"uuid": bson.M{"$in": filters.UUIDs}})
 	}
 
-	if terms := normalizeStringTerms(filters.Names); len(terms) > 0 {
-		preds = append(preds, func(part *repoModel.Part) bool {
-			name := strings.ToLower(part.Name)
-			return anyContains(name, terms)
-		})
+	if len(filters.Names) > 0 {
+		and = append(and, bson.M{"name": bson.M{"$in": filters.Names}})
 	}
 
-	if cats := normalizeCategorySet(filters.Categories); len(cats) > 0 {
-		preds = append(preds, func(part *repoModel.Part) bool {
-			_, ok := cats[part.Category]
-			return ok
-		})
-	}
-
-	if countries := normalizeStringSet(filters.ManufacturerCountries, true); len(countries) > 0 {
-		preds = append(preds, func(p *repoModel.Part) bool {
-			m := p.Manufacturer
-			if m == nil {
-				return false
-			}
-			country := strings.ToLower(strings.TrimSpace(m.Country))
-			_, ok := countries[country]
-			return ok
-		})
-	}
-
-	if tags := normalizeStringSet(filters.Tags, true); len(tags) > 0 {
-		preds = append(preds, func(p *repoModel.Part) bool {
-			return hasAnyTag(filters.Tags, tags)
-		})
-	}
-
-	if len(preds) == 0 {
-		return nil, false
-	}
-	return func(p *repoModel.Part) bool {
-		for _, pr := range preds {
-			if !pr(p) {
-				return false
-			}
+	if len(filters.Categories) > 0 {
+		cats := make([]int, len(filters.Categories))
+		for _, cat := range filters.Categories {
+			cats = append(cats, int(cat))
 		}
-		return true
-	}, true
-}
-
-func hasAnyTag(partTags []string, filterTags map[string]struct{}) bool {
-	for _, t := range partTags {
-		t = strings.ToLower(strings.TrimSpace(t))
-		if _, ok := filterTags[t]; ok {
-			return true
-		}
+		and = append(and, bson.M{"category": bson.M{"$in": cats}})
 	}
-	return false
-}
 
-func normalizeStringSet(src []string, lower bool) map[string]struct{} {
-	out := make(map[string]struct{}, len(src))
-	for _, s := range src {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		if lower {
-			s = strings.ToLower(s)
-		}
-		out[s] = struct{}{}
+	if len(filters.ManufacturerCountries) > 0 {
+		and = append(and, bson.M{"manufacturer.country": bson.M{"$in": filters.ManufacturerCountries}})
 	}
-	return out
-}
 
-func normalizeStringTerms(src []string) []string {
-	out := make([]string, 0, len(src))
-	for _, s := range src {
-		s = strings.ToLower(strings.TrimSpace(s))
-		if s != "" {
-			out = append(out, s)
-		}
+	if len(filters.Tags) > 0 {
+		and = append(and, bson.M{"tags": bson.M{"$in": filters.Tags}})
 	}
-	return out
-}
 
-func anyContains(haystack string, terms []string) bool {
-	for _, t := range terms {
-		if strings.Contains(haystack, t) {
-			return true
-		}
+	if len(and) == 0 {
+		return filter
 	}
-	return false
-}
 
-func normalizeCategorySet(src []model.PartCategory) map[repoModel.PartCategory]struct{} {
-	out := make(map[repoModel.PartCategory]struct{}, len(src))
-	for _, c := range src {
-		out[converter.ModelPartCategoryToRepo(c)] = struct{}{}
+	if len(and) == 1 {
+		for k, v := range and[0].(bson.M) {
+			filter[k] = v
+		}
+		return filter
 	}
-	return out
+
+	filter["$and"] = and
+	return filter
 }

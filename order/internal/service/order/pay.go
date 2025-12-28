@@ -21,8 +21,8 @@ func (s *service) Pay(
 
 	txID, err := s.paymentClient.PayOrder(
 		ctx,
-		order.UUID,
-		order.UserUUID,
+		order.UUID.String(),
+		order.UserUUID.String(),
 		paymentMethod,
 	)
 	if err != nil {
@@ -43,7 +43,7 @@ func (s *service) Pay(
 
 	payedOrder, err := s.orderRepository.Pay(
 		ctx,
-		order.UUID,
+		order.UUID.String(),
 		paymentMethod,
 		txID,
 		model.OrderStatusPAID,
@@ -52,5 +52,10 @@ func (s *service) Pay(
 		return "", err
 	}
 
-	return *payedOrder.TransactionUUID, nil
+	var trxUUID string
+	if payedOrder.TransactionUUID != nil {
+		trxUUID = payedOrder.TransactionUUID.String()
+	}
+
+	return trxUUID, nil
 }

@@ -3,28 +3,43 @@ package order
 import (
 	"context"
 
-	"github.com/samber/lo"
+	sq "github.com/Masterminds/squirrel"
 
 	"github.com/delyke/go_workspace_example/order/internal/model"
-	"github.com/delyke/go_workspace_example/order/internal/repository/converter"
 )
 
 func (r *repository) Pay(
-	_ context.Context,
+	ctx context.Context,
 	uuid string,
 	method model.PaymentMethod,
 	txUUID string,
 	status model.OrderStatus,
 ) (*model.Order, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	builderUpdate := sq.Update("orders").
+		PlaceholderFormat(sq.Dollar).
+		Set("transaction_uuid", txUUID).
+		Set("order_status", status).
+		Set("payment_method", method).
+		Where(sq.Eq{"uuid": uuid})
 
-	order, ok := r.orders[uuid]
-	if !ok {
+	query, args, err := builderUpdate.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := r.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.RowsAffected() == 0 {
 		return nil, model.ErrOrderNotFound
 	}
-	order.TransactionUUID = &txUUID
-	order.OrderStatus = string(status)
-	order.PaymentMethod = lo.ToPtr(string(method))
-	return converter.RepoToOrderModel(order)
+
+	var updatedOrder *model.Order
+	updatedOrder, err = r.Get(ctx, uuid)
+	if err != nil {
+		return nil, err
+	}
+	return updatedOrder, nil
 }

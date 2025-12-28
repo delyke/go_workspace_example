@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 	"google.golang.org/grpc/codes"
 	grpcStatus "google.golang.org/grpc/status"
@@ -33,11 +34,11 @@ func (s *ServiceSuite) TestPaymentClientInternalServerError() {
 		payReturnErr        = model.ErrPaymentInternalServerError
 	)
 
-	s.orderRepository.On("Get", s.ctx, order.UUID).Return(order, nil).Once()
+	s.orderRepository.On("Get", s.ctx, order.UUID.String()).Return(order, nil).Once()
 	s.paymentClient.
-		On("PayOrder", s.ctx, order.UUID, order.UserUUID, paymentMethod).
+		On("PayOrder", s.ctx, order.UUID.String(), order.UserUUID.String(), paymentMethod).
 		Return("", paymentServiceError).Once()
-	ansOrder, err := s.service.Pay(s.ctx, order.UUID, paymentMethod)
+	ansOrder, err := s.service.Pay(s.ctx, order.UUID.String(), paymentMethod)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, payReturnErr)
 	s.Require().Empty(ansOrder)
@@ -51,11 +52,11 @@ func (s *ServiceSuite) TestPaymentClientUnavailableError() {
 		payReturnErr        = model.ErrPaymentServiceUnavailable
 	)
 
-	s.orderRepository.On("Get", s.ctx, order.UUID).Return(order, nil).Once()
+	s.orderRepository.On("Get", s.ctx, order.UUID.String()).Return(order, nil).Once()
 	s.paymentClient.
-		On("PayOrder", s.ctx, order.UUID, order.UserUUID, paymentMethod).
+		On("PayOrder", s.ctx, order.UUID.String(), order.UserUUID.String(), paymentMethod).
 		Return("", paymentServiceError).Once()
-	ansOrder, err := s.service.Pay(s.ctx, order.UUID, paymentMethod)
+	ansOrder, err := s.service.Pay(s.ctx, order.UUID.String(), paymentMethod)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, payReturnErr)
 	s.Require().Empty(ansOrder)
@@ -69,11 +70,11 @@ func (s *ServiceSuite) TestPaymentClientDeadlineExceededError() {
 		payReturnErr        = model.ErrPaymentServiceDeadlineExceeded
 	)
 
-	s.orderRepository.On("Get", s.ctx, order.UUID).Return(order, nil).Once()
+	s.orderRepository.On("Get", s.ctx, order.UUID.String()).Return(order, nil).Once()
 	s.paymentClient.
-		On("PayOrder", s.ctx, order.UUID, order.UserUUID, paymentMethod).
+		On("PayOrder", s.ctx, order.UUID.String(), order.UserUUID.String(), paymentMethod).
 		Return("", paymentServiceError).Once()
-	ansOrder, err := s.service.Pay(s.ctx, order.UUID, paymentMethod)
+	ansOrder, err := s.service.Pay(s.ctx, order.UUID.String(), paymentMethod)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, payReturnErr)
 	s.Require().Empty(ansOrder)
@@ -87,11 +88,11 @@ func (s *ServiceSuite) TestPaymentClientBadGatewayError() {
 		payReturnErr        = model.ErrPaymentBadGateway
 	)
 
-	s.orderRepository.On("Get", s.ctx, order.UUID).Return(order, nil).Once()
+	s.orderRepository.On("Get", s.ctx, order.UUID.String()).Return(order, nil).Once()
 	s.paymentClient.
-		On("PayOrder", s.ctx, order.UUID, order.UserUUID, paymentMethod).
+		On("PayOrder", s.ctx, order.UUID.String(), order.UserUUID.String(), paymentMethod).
 		Return("", paymentServiceError).Once()
-	ansOrder, err := s.service.Pay(s.ctx, order.UUID, paymentMethod)
+	ansOrder, err := s.service.Pay(s.ctx, order.UUID.String(), paymentMethod)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, payReturnErr)
 	s.Require().Empty(ansOrder)
@@ -104,15 +105,15 @@ func (s *ServiceSuite) TestPaymentRepositoryPayError() {
 		txID          = s.faker.UUID()
 		repoErr       = model.ErrOrderNotFound
 	)
-	s.orderRepository.On("Get", s.ctx, order.UUID).Return(order, nil).Once()
+	s.orderRepository.On("Get", s.ctx, order.UUID.String()).Return(order, nil).Once()
 	s.paymentClient.
-		On("PayOrder", s.ctx, order.UUID, order.UserUUID, paymentMethod).
+		On("PayOrder", s.ctx, order.UUID.String(), order.UserUUID.String(), paymentMethod).
 		Return(txID, nil).Once()
 	s.orderRepository.
-		On("Pay", s.ctx, order.UUID, paymentMethod, txID, model.OrderStatusPAID).
+		On("Pay", s.ctx, order.UUID.String(), paymentMethod, txID, model.OrderStatusPAID).
 		Return(nil, repoErr).Once()
 
-	ansOrder, err := s.service.Pay(s.ctx, order.UUID, paymentMethod)
+	ansOrder, err := s.service.Pay(s.ctx, order.UUID.String(), paymentMethod)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, repoErr)
 	s.Require().Empty(ansOrder)
@@ -124,18 +125,27 @@ func (s *ServiceSuite) TestPaymentRepositoryPaySuccess() {
 		paymentMethod = s.getRandomPaymentMethod()
 		txID          = s.faker.UUID()
 	)
-	order.TransactionUUID = lo.ToPtr(txID)
+
+	genUUID, err := uuid.Parse(txID)
+	s.Require().NoError(err)
+	order.TransactionUUID = lo.ToPtr(genUUID)
 
 	log.Printf("%#v", order)
-	s.orderRepository.On("Get", s.ctx, order.UUID).Return(order, nil).Once()
+	s.orderRepository.On("Get", s.ctx, order.UUID.String()).Return(order, nil).Once()
 	s.paymentClient.
-		On("PayOrder", s.ctx, order.UUID, order.UserUUID, paymentMethod).
+		On("PayOrder", s.ctx, order.UUID.String(), order.UserUUID.String(), paymentMethod).
 		Return(txID, nil).Once()
 	s.orderRepository.
-		On("Pay", s.ctx, order.UUID, paymentMethod, txID, model.OrderStatusPAID).
+		On("Pay", s.ctx, order.UUID.String(), paymentMethod, txID, model.OrderStatusPAID).
 		Return(order, nil).Once()
 
-	ansTxUUID, err := s.service.Pay(s.ctx, order.UUID, paymentMethod)
+	ansTxUUID, err := s.service.Pay(s.ctx, order.UUID.String(), paymentMethod)
 	s.Require().NoError(err)
-	s.Require().Equal(*order.TransactionUUID, ansTxUUID)
+
+	var txPrepare string
+	if order.TransactionUUID != nil {
+		txPrepare = order.TransactionUUID.String()
+	}
+
+	s.Require().Equal(txPrepare, ansTxUUID)
 }

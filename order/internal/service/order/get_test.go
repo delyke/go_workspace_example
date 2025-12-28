@@ -5,9 +5,9 @@ import "github.com/delyke/go_workspace_example/order/internal/model"
 func (s *ServiceSuite) TestGetSuccess() {
 	randomOrder := s.generateRandomOrder()
 
-	s.orderRepository.On("Get", s.ctx, randomOrder.UUID).Return(randomOrder, nil).Once()
+	s.orderRepository.On("Get", s.ctx, randomOrder.UUID.String()).Return(randomOrder, nil).Once()
 
-	ansOrder, err := s.service.Get(s.ctx, randomOrder.UUID)
+	ansOrder, err := s.service.Get(s.ctx, randomOrder.UUID.String())
 	s.Require().NoError(err)
 	s.Require().Equal(randomOrder, ansOrder)
 }

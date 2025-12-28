@@ -2,17 +2,29 @@ package order
 
 import (
 	"context"
+	"log"
+
+	sq "github.com/Masterminds/squirrel"
 
 	"github.com/delyke/go_workspace_example/order/internal/model"
 )
 
-func (r *repository) Cancel(_ context.Context, uuid string, status model.OrderStatus) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	order, ok := r.orders[uuid]
-	if !ok {
-		return model.ErrOrderNotFound
+func (r *repository) Cancel(ctx context.Context, uuid string, status model.OrderStatus) error {
+	builderUpdate := sq.Update("orders").
+		PlaceholderFormat(sq.Dollar).
+		Set("order_status", status).
+		Where(sq.Eq{"uuid": uuid})
+
+	query, args, err := builderUpdate.ToSql()
+	if err != nil {
+		log.Printf("failed to build query for cancel: %v", err)
+		return err
 	}
-	order.OrderStatus = string(status)
+	res, err := r.pool.Exec(ctx, query, args...)
+	if err != nil {
+		log.Printf("failed to cancel order: %v", err)
+		return err
+	}
+	log.Printf("cancelled orders count: %d", res.RowsAffected())
 	return nil
 }
