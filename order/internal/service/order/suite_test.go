@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/suite"
 
@@ -40,9 +41,13 @@ func TestServiceIntegration(t *testing.T) {
 
 func (s *ServiceSuite) generateRandomOrder() *model.Order {
 	return &model.Order{
-		UUID:            s.faker.UUID(),
-		UserUUID:        s.faker.UUID(),
-		PartUuids:       []string{s.faker.UUID(), s.faker.UUID(), s.faker.UUID()},
+		UUID:     uuid.MustParse(s.faker.UUID()),
+		UserUUID: uuid.MustParse(s.faker.UUID()),
+		PartUuids: []uuid.UUID{
+			uuid.MustParse(s.faker.UUID()),
+			uuid.MustParse(s.faker.UUID()),
+			uuid.MustParse(s.faker.UUID()),
+		},
 		TotalPrice:      s.faker.Price(1.24, 6000.0),
 		TransactionUUID: s.getTransactionUUIDOrNil(),
 		OrderStatus:     s.getRandomOrderStatus(),
@@ -54,11 +59,11 @@ func (s *ServiceSuite) generateTransactionUUID() string {
 	return s.faker.UUID()
 }
 
-func (s *ServiceSuite) getTransactionUUIDOrNil() *string {
+func (s *ServiceSuite) getTransactionUUIDOrNil() *uuid.UUID {
 	if s.faker.Bool() {
 		return nil
 	}
-	return lo.ToPtr(s.generateTransactionUUID())
+	return lo.ToPtr(uuid.MustParse(s.generateTransactionUUID()))
 }
 
 func (s *ServiceSuite) getRandomOrderStatus() model.OrderStatus {

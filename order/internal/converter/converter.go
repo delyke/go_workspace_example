@@ -81,36 +81,17 @@ func PartUUIDSOpenApiToModel(partUUIDS []uuid.UUID) []string {
 }
 
 func ModelOrderToOpenApiOrder(m *model.Order) (orderV1.OrderDto, error) {
-	orderUuid, err := uuid.Parse(m.UUID)
-	if err != nil {
-		return orderV1.OrderDto{}, err
-	}
-
-	userUuid, err := uuid.Parse(m.UserUUID)
-	if err != nil {
-		return orderV1.OrderDto{}, err
-	}
-
 	var partUuids []uuid.UUID
 	if m.PartUuids != nil {
 		partUuids = make([]uuid.UUID, len(m.PartUuids))
-		for i, uuidStr := range m.PartUuids {
-			partUuids[i], err = uuid.Parse(uuidStr)
-			if err != nil {
-				continue
-			}
-		}
+		copy(partUuids, m.PartUuids)
 	}
 
 	var transactionUUID orderV1.OptUUID
 
 	if m.TransactionUUID != nil {
-		id, err := uuid.Parse(*m.TransactionUUID)
-		if err != nil {
-			return orderV1.OrderDto{}, err
-		}
 		transactionUUID = orderV1.OptUUID{
-			Value: id,
+			Value: *m.TransactionUUID,
 			Set:   true,
 		}
 	} else {
@@ -127,8 +108,8 @@ func ModelOrderToOpenApiOrder(m *model.Order) (orderV1.OrderDto, error) {
 	}
 
 	return orderV1.OrderDto{
-		OrderUUID:       orderUuid,
-		UserUUID:        userUuid,
+		OrderUUID:       m.UUID,
+		UserUUID:        m.UserUUID,
 		PartUuids:       partUuids,
 		TotalPrice:      m.TotalPrice,
 		TransactionUUID: transactionUUID,

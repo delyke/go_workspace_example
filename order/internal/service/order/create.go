@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -40,9 +41,24 @@ func (s *service) Create(ctx context.Context, userUUID string, partUUIDs []strin
 	for _, p := range listParts {
 		totalPrice += p.Price
 	}
+
+	parsedUsrUUID, parserUsrUUIDErr := uuid.Parse(userUUID)
+	if parserUsrUUIDErr != nil {
+		return "", 0, err
+	}
+
+	var parsedPartUUIDs []uuid.UUID
+	for _, pUUID := range partUUIDs {
+		parsedPUUID, perr := uuid.Parse(pUUID)
+		if perr != nil {
+			continue
+		}
+		parsedPartUUIDs = append(parsedPartUUIDs, parsedPUUID)
+	}
+
 	order := &model.Order{
-		UserUUID:    userUUID,
-		PartUuids:   partUUIDs,
+		UserUUID:    parsedUsrUUID,
+		PartUuids:   parsedPartUUIDs,
 		TotalPrice:  totalPrice,
 		OrderStatus: model.OrderStatusPENDINGPAYMENT,
 	}
@@ -51,5 +67,5 @@ func (s *service) Create(ctx context.Context, userUUID string, partUUIDs []strin
 	if err != nil {
 		return "", 0, err
 	}
-	return createdOrder.UUID, createdOrder.TotalPrice, nil
+	return createdOrder.UUID.String(), createdOrder.TotalPrice, nil
 }

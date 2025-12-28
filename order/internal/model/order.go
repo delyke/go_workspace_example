@@ -1,5 +1,7 @@
 package model
 
+import "github.com/google/uuid"
+
 type OrderStatus string
 
 const (
@@ -19,11 +21,11 @@ const (
 )
 
 type Order struct {
-	UUID            string
-	UserUUID        string
-	PartUuids       []string
+	UUID            uuid.UUID   `json:"uuid"`
+	UserUUID        uuid.UUID   `json:"user_uuid"`
+	PartUuids       []uuid.UUID `json:"part_uuids"`
 	TotalPrice      float64
-	TransactionUUID *string
+	TransactionUUID *uuid.UUID `json:"transaction_uuid"`
 	OrderStatus     OrderStatus
 	PaymentMethod   *PaymentMethod
 }

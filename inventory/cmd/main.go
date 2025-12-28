@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -8,6 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -20,6 +24,7 @@ import (
 const grpcPort = 50051
 
 func main() {
+	ctx := context.Background()
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -28,7 +33,34 @@ func main() {
 
 	s := grpc.NewServer()
 
-	partRepo := partRepository.NewRepository()
+	err = godotenv.Load(".env")
+	if err != nil {
+		log.Printf("Error loading .env file: %v", err)
+	}
+
+	dbURI := os.Getenv("MONGO_URI")
+
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(dbURI))
+	if err != nil {
+		log.Printf("Error connecting to mongo db: %v", err)
+	}
+
+	defer func() {
+		cerr := mongoClient.Disconnect(ctx)
+		if cerr != nil {
+			log.Printf("Error disconnecting from mongo db: %v", cerr)
+		}
+	}()
+
+	err = mongoClient.Ping(ctx, nil)
+	if err != nil {
+		log.Printf("Error pinging mongo db: %v", err)
+		return
+	}
+
+	db := mongoClient.Database("inventory")
+
+	partRepo := partRepository.NewRepository(db)
 	partSrv := partService.NewService(partRepo)
 	invApi := inventoryApi.NewApi(partSrv)
 
