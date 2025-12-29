@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/delyke/go_workspace_example/order/internal/config"
 	"log"
 	"net"
 	"net/http"
@@ -15,7 +17,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -31,25 +32,19 @@ import (
 )
 
 const (
-	httpPort          = "8080"
-	readHeaderTimeout = 5 * time.Second
 	shutdownTimeout   = 10 * time.Second
-	inventoryAddress  = "localhost:50051"
-	paymentAddress    = "localhost:50052"
+	configPath= "./deploy/compose/order/.env"
 )
 
 func main() {
-	ctx := context.Background()
-
-	err := godotenv.Load(".env")
+	err := config.Load(configPath)
 	if err != nil {
-		log.Printf("failed to load .env file: %v", err)
-		return
+		panic(fmt.Errorf("failed to load config: %w", err))
 	}
 
-	dbURI := os.Getenv("DB_URI")
+	ctx := context.Background()
 
-	pool, err := pgxpool.New(ctx, dbURI)
+	pool, err := pgxpool.New(ctx, config.AppConfig().Postgres.URI())
 	if err != nil {
 		log.Printf("failed to connect to database: %v", err)
 		return
@@ -62,14 +57,13 @@ func main() {
 		return
 	}
 
-	migrationsDir := os.Getenv("MIGRATIONS_DIR")
 
-	poolCfg, err := pgxpool.ParseConfig(dbURI)
+	poolCfg, err := pgxpool.ParseConfig(config.AppConfig().Postgres.URI())
 	if err != nil {
 		return
 	}
 
-	migratorRunner := migrator.NewMigrator(stdlib.OpenDB(*poolCfg.ConnConfig), migrationsDir)
+	migratorRunner := migrator.NewMigrator(stdlib.OpenDB(*poolCfg.ConnConfig), config.AppConfig().Postgres.MigrationDirectory())
 	err = migratorRunner.Up()
 	if err != nil {
 		log.Printf("Ошибка миграции базы данных: %v\n", err)
@@ -77,7 +71,7 @@ func main() {
 	}
 
 	connInventory, err := grpc.NewClient(
-		inventoryAddress,
+		config.AppConfig().InventoryClient.Address(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -94,7 +88,7 @@ func main() {
 	invClient := inventoryClient.NewClient(generatedInvClient)
 
 	connPayment, err := grpc.NewClient(
-		paymentAddress,
+		config.AppConfig().PaymentClient.Address(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -127,16 +121,16 @@ func main() {
 	r.Mount("/", orderServer)
 
 	server := &http.Server{
-		Addr:              net.JoinHostPort("localhost", httpPort),
+		Addr:              net.JoinHostPort(config.AppConfig().HTTP.Host(), config.AppConfig().HTTP.Port()),
 		Handler:           r,
-		ReadHeaderTimeout: readHeaderTimeout, // Защита от Slowloris атак - тип DDoS-атаки, при которой
+		ReadHeaderTimeout: config.AppConfig().HTTP.ReadTimeout(), // Защита от Slowloris атак - тип DDoS-атаки, при которой
 		// атакующий умышленно медленно отправляет HTTP-заголовки, удерживая соединения открытыми и истощая
 		// пул доступных соединений на сервере. ReadHeaderTimeout принудительно закрывает соединение,
 		// если клиент не успел отправить все заголовки за отведенное время.
 	}
 
 	go func() {
-		log.Printf("🚀 HTTP-сервер запущен на порту %s\n", httpPort)
+		log.Printf("🚀 HTTP-сервер запущен по адресу %s\n", config.AppConfig().HTTP.Address())
 		err = server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("❌ Ошибка запуска сервера: %v\n", err)

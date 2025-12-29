@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/delyke/go_workspace_example/inventory/internal/config"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
@@ -21,26 +21,23 @@ import (
 	inventoryV1 "github.com/delyke/go_workspace_example/shared/pkg/proto/inventory/v1"
 )
 
-const grpcPort = 50051
+const configPath = "./deploy/compose/inventory/.env"
 
 func main() {
 	ctx := context.Background()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+	err := config.Load(configPath)
+	if err != nil {
+		panic(fmt.Errorf("failed to load config: %w", err))
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s", config.AppConfig().InventoryGRPC.Address()))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 		return
 	}
 
 	s := grpc.NewServer()
-
-	err = godotenv.Load(".env")
-	if err != nil {
-		log.Printf("Error loading .env file: %v", err)
-	}
-
-	dbURI := os.Getenv("MONGO_URI")
-
-	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(dbURI))
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(config.AppConfig().Mongo.URI()))
 	if err != nil {
 		log.Printf("Error connecting to mongo db: %v", err)
 	}
@@ -68,7 +65,7 @@ func main() {
 	reflection.Register(s)
 
 	go func() {
-		log.Printf("starting gRPC server on port %d\n", grpcPort)
+		log.Printf("starting gRPC server on %s\n", config.AppConfig().InventoryGRPC.Address())
 		err = s.Serve(lis)
 		if err != nil {
 			log.Printf("failed to serve: %v\n", err)

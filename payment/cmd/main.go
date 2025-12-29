@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/delyke/go_workspace_example/payment/internal/config"
 	"log"
 	"net"
 	"os"
@@ -16,10 +17,15 @@ import (
 	paymentV1 "github.com/delyke/go_workspace_example/shared/pkg/proto/payment/v1"
 )
 
-const grpcPort = 50052
+const configPath = "./deploy/compose/payment/.env"
 
 func main() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+	err := config.Load(configPath)
+	if err != nil {
+		panic(fmt.Errorf("load config: %v", err))
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s", config.AppConfig().PaymentGRPC.Address()))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 		return
@@ -34,7 +40,7 @@ func main() {
 	reflection.Register(s)
 
 	go func() {
-		log.Printf("payment gRPC server listening at %d\n", grpcPort)
+		log.Printf("payment gRPC server listening at %s\n", config.AppConfig().PaymentGRPC.Address())
 		err = s.Serve(lis)
 		if err != nil {
 			log.Fatalf("failed to serve: %v\n", err)
