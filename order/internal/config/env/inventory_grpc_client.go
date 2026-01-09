@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+
 	"github.com/caarlos0/env/v11"
 )
 
@@ -25,6 +26,7 @@ func NewInventoryGrpcClientConfig() (*inventoryGrpcClientConfig, error) {
 func (invGrpc *inventoryGrpcClientConfig) Host() string {
 	return invGrpc.raw.GrpcHost
 }
+
 func (invGrpc *inventoryGrpcClientConfig) Port() int {
 	return invGrpc.raw.GrpcPort
 }

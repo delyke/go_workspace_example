@@ -1,14 +1,13 @@
 package config
 
 import (
-	"github.com/delyke/go_workspace_example/payment/internal/config/env"
 	"github.com/joho/godotenv"
 )
 
 var appConfig *config
 
-type config struct{
-	Logger LoggerConfig
+type config struct {
+	Logger      LoggerConfig
 	PaymentGRPC PaymentGRPCConfig
 }
 
@@ -26,7 +25,7 @@ func Load(path ...string) error {
 		return err
 	}
 	appConfig = &config{
-		Logger: loggerCfg,
+		Logger:      loggerCfg,
 		PaymentGRPC: paymentGRPCConf,
 	}
 	return nil

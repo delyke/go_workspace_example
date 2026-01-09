@@ -2,11 +2,12 @@ package order
 
 import (
 	"context"
-	"log"
 
 	sq "github.com/Masterminds/squirrel"
+	"go.uber.org/zap"
 
 	"github.com/delyke/go_workspace_example/order/internal/model"
+	"github.com/delyke/go_workspace_example/platform/pkg/logger"
 )
 
 func (r *repository) Cancel(ctx context.Context, uuid string, status model.OrderStatus) error {
@@ -17,14 +18,14 @@ func (r *repository) Cancel(ctx context.Context, uuid string, status model.Order
 
 	query, args, err := builderUpdate.ToSql()
 	if err != nil {
-		log.Printf("failed to build query for cancel: %v", err)
+		logger.Error(ctx, "failed to build query for cancel", zap.Error(err))
 		return err
 	}
 	res, err := r.pool.Exec(ctx, query, args...)
 	if err != nil {
-		log.Printf("failed to cancel order: %v", err)
+		logger.Error(ctx, "failed to cancel order", zap.Error(err))
 		return err
 	}
-	log.Printf("cancelled orders count: %d", res.RowsAffected())
+	logger.Debug(ctx, "cancelled orders count", zap.Int64("orders count", res.RowsAffected()))
 	return nil
 }

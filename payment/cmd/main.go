@@ -1,20 +1,19 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/delyke/go_workspace_example/payment/internal/config"
 	"log"
-	"net"
-	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"go.uber.org/zap"
 
-	paymentApiV1 "github.com/delyke/go_workspace_example/payment/internal/api/payment/v1"
-	paymentService "github.com/delyke/go_workspace_example/payment/internal/service/payment"
-	paymentV1 "github.com/delyke/go_workspace_example/shared/pkg/proto/payment/v1"
+	"github.com/delyke/go_workspace_example/payment/internal/app"
+	"github.com/delyke/go_workspace_example/payment/internal/config"
+	"github.com/delyke/go_workspace_example/platform/pkg/closer"
+	"github.com/delyke/go_workspace_example/platform/pkg/logger"
 )
 
 const configPath = "./deploy/compose/payment/.env"
@@ -22,36 +21,33 @@ const configPath = "./deploy/compose/payment/.env"
 func main() {
 	err := config.Load(configPath)
 	if err != nil {
-		panic(fmt.Errorf("load config: %v", err))
+		panic(fmt.Errorf("load config: %w", err))
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s", config.AppConfig().PaymentGRPC.Address()))
+	appCtx, appCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer appCancel()
+	defer gracefulShutdown()
+
+	closer.Configure(syscall.SIGINT, syscall.SIGTERM)
+
+	a, err := app.New(appCtx)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Println(err)
 		return
 	}
 
-	s := grpc.NewServer()
+	err = a.Run(appCtx)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
 
-	pService := paymentService.NewService()
-	apiV1 := paymentApiV1.NewApi(pService)
+func gracefulShutdown() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	paymentV1.RegisterPaymentServiceServer(s, apiV1)
-	reflection.Register(s)
-
-	go func() {
-		log.Printf("payment gRPC server listening at %s\n", config.AppConfig().PaymentGRPC.Address())
-		err = s.Serve(lis)
-		if err != nil {
-			log.Fatalf("failed to serve: %v\n", err)
-			return
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
-	s.GracefulStop()
-	log.Println("Server gracefully stopped")
+	if err := closer.CloseAll(ctx); err != nil {
+		logger.Error(ctx, "❌ Ошибка при завершении работы", zap.Error(err))
+	}
 }

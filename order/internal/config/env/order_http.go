@@ -2,13 +2,14 @@ package env
 
 import (
 	"fmt"
-	"github.com/caarlos0/env/v11"
 	"time"
+
+	"github.com/caarlos0/env/v11"
 )
 
 type httpEnvConfig struct {
-	Host string `env:"HTTP_HOST,required"`
-	Port string `env:"HTTP_PORT,required"`
+	Host        string `env:"HTTP_HOST,required"`
+	Port        string `env:"HTTP_PORT,required"`
 	ReadTimeout string `env:"HTTP_READ_TIMEOUT,required"`
 }
 
@@ -27,6 +28,7 @@ func NewHTTPConfig() (*httpConfig, error) {
 func (h *httpConfig) Host() string {
 	return h.raw.Host
 }
+
 func (h *httpConfig) Port() string {
 	return h.raw.Port
 }

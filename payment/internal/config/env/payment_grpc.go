@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+
 	"github.com/caarlos0/env/v11"
 )
 
@@ -25,9 +26,11 @@ func NewPaymentGrpcConfig() (*paymentGrpcConfig, error) {
 func (pc *paymentGrpcConfig) Host() string {
 	return pc.raw.Host
 }
+
 func (pc *paymentGrpcConfig) Port() string {
 	return pc.raw.Port
 }
+
 func (pc *paymentGrpcConfig) Address() string {
 	return fmt.Sprintf("%s:%s", pc.raw.Host, pc.raw.Port)
 }
