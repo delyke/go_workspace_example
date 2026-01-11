@@ -34,24 +34,13 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
 
-      - name: 🔎 Go toolchain diagnostics
-        run: |
-          set -euxo pipefail
-          go version
-          go env GOROOT GOTOOLDIR GOTOOLCHAIN GOMOD GOWORK
-          ls -la "$(go env GOTOOLDIR)" | head -200
-          echo "covdata present?"
-          ls -la "$(go env GOTOOLDIR)/covdata" || true
-          echo "try go tool covdata:"
-          go tool covdata -h || true
-
       - name: 📌 Install Task
         uses: arduino/setup-task@v2.0.0
 
       - name: 🧪 Run tests with coverage
         env:
-          MODULES: ${{ inputs.modules }}
           GOTOOLCHAIN: go1.25.5+auto
+          MODULES: ${{ inputs.modules }}
         run: task test-coverage
 
       - name: 📊 Extract coverage percent
