@@ -4,81 +4,50 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
-	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"go.uber.org/zap"
 
-	inventoryApi "github.com/delyke/go_workspace_example/inventory/internal/api/inventory/v1"
-	partRepository "github.com/delyke/go_workspace_example/inventory/internal/repository/part"
-	partService "github.com/delyke/go_workspace_example/inventory/internal/service/part"
-	inventoryV1 "github.com/delyke/go_workspace_example/shared/pkg/proto/inventory/v1"
+	"github.com/delyke/go_workspace_example/inventory/internal/app"
+	"github.com/delyke/go_workspace_example/inventory/internal/config"
+	"github.com/delyke/go_workspace_example/platform/pkg/closer"
+	"github.com/delyke/go_workspace_example/platform/pkg/logger"
 )
 
-const grpcPort = 50051
+const configPath = "./deploy/compose/inventory/.env"
 
 func main() {
-	ctx := context.Background()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+	err := config.Load(configPath)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		panic(fmt.Errorf("failed to load config: %w", err))
+	}
+
+	appCtx, appCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer appCancel()
+	defer gracefulShutdown()
+
+	closer.Configure(syscall.SIGINT, syscall.SIGTERM)
+
+	a, err := app.New(appCtx)
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
-	s := grpc.NewServer()
-
-	err = godotenv.Load(".env")
+	err = a.Run(appCtx)
 	if err != nil {
-		log.Printf("Error loading .env file: %v", err)
-	}
-
-	dbURI := os.Getenv("MONGO_URI")
-
-	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(dbURI))
-	if err != nil {
-		log.Printf("Error connecting to mongo db: %v", err)
-	}
-
-	defer func() {
-		cerr := mongoClient.Disconnect(ctx)
-		if cerr != nil {
-			log.Printf("Error disconnecting from mongo db: %v", cerr)
-		}
-	}()
-
-	err = mongoClient.Ping(ctx, nil)
-	if err != nil {
-		log.Printf("Error pinging mongo db: %v", err)
+		log.Println(err)
 		return
 	}
+}
 
-	db := mongoClient.Database("inventory")
+func gracefulShutdown() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	partRepo := partRepository.NewRepository(db)
-	partSrv := partService.NewService(partRepo)
-	invApi := inventoryApi.NewApi(partSrv)
-
-	inventoryV1.RegisterInventoryServiceServer(s, invApi)
-	reflection.Register(s)
-
-	go func() {
-		log.Printf("starting gRPC server on port %d\n", grpcPort)
-		err = s.Serve(lis)
-		if err != nil {
-			log.Printf("failed to serve: %v\n", err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Printf("Shutting down gRPC server...")
-	s.GracefulStop()
-	log.Printf("Server gracefully stopped")
+	if err := closer.CloseAll(ctx); err != nil {
+		logger.Error(ctx, "❌ Ошибка при завершении работы", zap.Error(err))
+	}
 }

@@ -2,9 +2,11 @@ package order
 
 import (
 	"context"
+	"errors"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/delyke/go_workspace_example/order/internal/model"
 	"github.com/delyke/go_workspace_example/order/internal/repository/converter"
@@ -41,6 +43,9 @@ func (r *repository) Get(ctx context.Context, id string) (*model.Order, error) {
 
 	err = r.pool.QueryRow(ctx, query, args...).Scan(&ouuid, &userUUID, &partUUIDs, &totalPrice, &transactionUUID, &orderStatus, &paymentMethod)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, model.ErrOrderNotFound
+		}
 		return nil, err
 	}
 

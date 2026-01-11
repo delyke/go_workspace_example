@@ -2,15 +2,16 @@ package order
 
 import (
 	"context"
-	"log"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/delyke/go_workspace_example/order/internal/model"
 	"github.com/delyke/go_workspace_example/order/internal/repository/converter"
 	repoModel "github.com/delyke/go_workspace_example/order/internal/repository/model"
+	"github.com/delyke/go_workspace_example/platform/pkg/logger"
 )
 
 func (r *repository) Create(ctx context.Context, order *model.Order) (*model.Order, error) {
@@ -38,7 +39,7 @@ func (r *repository) Create(ctx context.Context, order *model.Order) (*model.Ord
 	var updatedAt *time.Time
 	err = r.pool.QueryRow(ctx, query, args...).Scan(&ouuid, &userUUID, &partUUIDs, &totalPrice, &transactionUUID, &orderStatus, &paymentMethod, &createdAt, &updatedAt)
 	if err != nil {
-		log.Printf("failed to insert order: %v", err)
+		logger.Error(ctx, "failed to insert order", zap.Error(err))
 		return nil, err
 	}
 
