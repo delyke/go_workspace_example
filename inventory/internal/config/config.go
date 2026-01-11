@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/delyke/go_workspace_example/inventory/internal/config/env"
 	"github.com/joho/godotenv"
 )
 
